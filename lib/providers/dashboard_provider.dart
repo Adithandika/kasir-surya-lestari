@@ -179,4 +179,9 @@ class DashboardProvider with ChangeNotifier {
     _history = await DatabaseService.getOrderHistory();
     notifyListeners();
   }
+
+  Future<void> deleteOrder(int orderId) async {
+    await DatabaseService.deleteOrder(orderId);
+    await _loadHistory();
+  }
 }

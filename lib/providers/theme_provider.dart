@@ -6,17 +6,26 @@ class ThemeProvider with ChangeNotifier {
   static const String _colorKey = 'primary_color';
   static const String _shopNameKey = 'shop_name';
   static const String _posCartWidthKey = 'pos_cart_width';
+  static const String _printerIpKey = 'printer_ip';
+  static const String _printerPortKey = 'printer_port';
+  static const String _printerPaperSizeKey = 'printer_paper_size';
 
   ThemeMode _themeMode = ThemeMode.system;
   Color _primaryColor = const Color(0xFF0EA5E9); // Sky blue instead of Indigo
   String _shopName = 'Cashierya App';
   double _posCartWidth = 320.0;
+  String _printerIp = '192.168.1.100';
+  int _printerPort = 9100;
+  String _printerPaperSize = '80mm';
   bool _isInitialized = false;
 
   ThemeMode get themeMode => _themeMode;
   Color get primaryColor => _primaryColor;
   String get shopName => _shopName;
   double get posCartWidth => _posCartWidth;
+  String get printerIp => _printerIp;
+  int get printerPort => _printerPort;
+  String get printerPaperSize => _printerPaperSize;
   bool get isDarkMode {
     if (_themeMode == ThemeMode.system) {
       return WidgetsBinding.instance.platformDispatcher.platformBrightness == Brightness.dark;
@@ -51,6 +60,9 @@ class ThemeProvider with ChangeNotifier {
       }
       _shopName = shopName ?? 'Cashierya App';
       _posCartWidth = (cartWidth ?? 320.0).clamp(280.0, 800.0);
+      _printerIp = prefs.getString(_printerIpKey) ?? '192.168.1.100';
+      _printerPort = prefs.getInt(_printerPortKey) ?? 9100;
+      _printerPaperSize = prefs.getString(_printerPaperSizeKey) ?? '80mm';
     } catch (e) {
       debugPrint('ThemeProvider: Failed to load settings: $e');
       // Fallback to default values already set
@@ -109,6 +121,42 @@ class ThemeProvider with ChangeNotifier {
       await prefs.setDouble(_posCartWidthKey, _posCartWidth);
     } catch (e) {
       debugPrint('ThemeProvider: Failed to save cart width: $e');
+    }
+  }
+
+  Future<void> setPrinterIp(String ip) async {
+    _printerIp = ip;
+    notifyListeners();
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_printerIpKey, ip);
+    } catch (e) {
+      debugPrint('ThemeProvider: Failed to save printer IP: $e');
+    }
+  }
+
+  Future<void> setPrinterPort(int port) async {
+    _printerPort = port;
+    notifyListeners();
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt(_printerPortKey, port);
+    } catch (e) {
+      debugPrint('ThemeProvider: Failed to save printer port: $e');
+    }
+  }
+
+  Future<void> setPrinterPaperSize(String size) async {
+    _printerPaperSize = size;
+    notifyListeners();
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_printerPaperSizeKey, size);
+    } catch (e) {
+      debugPrint('ThemeProvider: Failed to save printer paper size: $e');
     }
   }
 }

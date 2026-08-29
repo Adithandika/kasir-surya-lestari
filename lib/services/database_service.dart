@@ -82,6 +82,12 @@ class DatabaseService {
     });
   }
 
+  static Future<void> deleteOrder(Id id) async {
+    await isar.writeTxn(() async {
+      await isar.orderModels.delete(id);
+    });
+  }
+
   // Member CRUD
   static Future<List<Member>> getAllMembers() async {
     return await isar.members.where().findAll();

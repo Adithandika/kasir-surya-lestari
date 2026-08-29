@@ -97,4 +97,9 @@ class ReportsProvider with ChangeNotifier {
   Future<void> refresh() async {
     await _loadAllOrders();
   }
+
+  Future<void> deleteOrder(int orderId) async {
+    await DatabaseService.deleteOrder(orderId);
+    await _loadAllOrders();
+  }
 }

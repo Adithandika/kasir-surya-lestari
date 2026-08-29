@@ -8,6 +8,7 @@ import '../../providers/reports_provider.dart';
 import '../../models/order.dart';
 import '../../core/theme.dart';
 import '../../core/widgets/app_widgets.dart';
+import '../../core/widgets/order_details_dialog.dart';
 
 class ReportsScreen extends StatefulWidget {
   const ReportsScreen({super.key});
@@ -506,88 +507,91 @@ class _ReportContentView extends StatelessWidget {
             separatorBuilder: (context, index) => const SizedBox(height: 8),
             itemBuilder: (context, index) {
               final order = orders[index];
-              return AppCard(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                radius: 16,
-                child: Row(
-                  children: [
-                    Container(
-                      width: 54,
-                      height: 54,
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).primaryColor.withValues(alpha: 0.05),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Center(
-                        child: Text(
-                          "#${order.id.toString().padLeft(3, '0')}",
-                          style: TextStyle(
-                            fontWeight: FontWeight.w900, 
-                            fontSize: 12,
-                            color: Theme.of(context).primaryColor,
+              return GestureDetector(
+                onTap: () => OrderDetailsDialog.show(context, order),
+                child: AppCard(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  radius: 16,
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 54,
+                        height: 54,
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).primaryColor.withValues(alpha: 0.05),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Center(
+                          child: Text(
+                            "#${order.id.toString().padLeft(3, '0')}",
+                            style: TextStyle(
+                              fontWeight: FontWeight.w900, 
+                              fontSize: 12,
+                              color: Theme.of(context).primaryColor,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 20),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      const SizedBox(width: 20),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              dateFormatter.format(order.date),
+                              style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14),
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.05),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text("${order.items.length} Produk", style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4), fontSize: 10, fontWeight: FontWeight.w800)),
+                                ),
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.accentColor.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(order.paymentMethod.toUpperCase(), style: TextStyle(color: AppTheme.accentColor, fontSize: 10, fontWeight: FontWeight.w900)),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Text(
-                            dateFormatter.format(order.date),
-                            style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14),
+                            formatter.format(order.total),
+                            style: TextStyle(
+                              fontWeight: FontWeight.w900, 
+                              fontSize: 18, 
+                              color: Theme.of(context).colorScheme.onSurface,
+                              letterSpacing: -1,
+                            ),
                           ),
-                          const SizedBox(height: 4),
-                          Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.05),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Text("${order.items.length} Produk", style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4), fontSize: 10, fontWeight: FontWeight.w800)),
-                              ),
-                              const SizedBox(width: 8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: AppTheme.accentColor.withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Text(order.paymentMethod.toUpperCase(), style: TextStyle(color: AppTheme.accentColor, fontSize: 10, fontWeight: FontWeight.w900)),
-                              ),
-                            ],
+                          Text(
+                            "Total Bayar",
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                         ],
                       ),
-                    ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          formatter.format(order.total),
-                          style: TextStyle(
-                            fontWeight: FontWeight.w900, 
-                            fontSize: 18, 
-                            color: Theme.of(context).colorScheme.onSurface,
-                            letterSpacing: -1,
-                          ),
-                        ),
-                        Text(
-                          "Total Bayar",
-                          style: TextStyle(
-                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3),
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(width: 12),
-                    Icon(Icons.chevron_right_rounded, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1), size: 22),
-                  ],
+                      const SizedBox(width: 12),
+                      Icon(Icons.chevron_right_rounded, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1), size: 22),
+                    ],
+                  ),
                 ),
               ).animate(delay: (800 + index * 30).ms).fadeIn().slideX(begin: 0.05);
             },

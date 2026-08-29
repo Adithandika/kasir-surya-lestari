@@ -8,6 +8,7 @@ import '../../providers/dashboard_provider.dart';
 import '../../providers/theme_provider.dart';
 import '../reports/insights_screen.dart';
 import '../../core/widgets/app_widgets.dart';
+import '../../core/widgets/order_details_dialog.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -286,7 +287,7 @@ class DashboardScreen extends StatelessWidget {
     }
 
     return InkWell(
-      onTap: () {},
+      onTap: () => OrderDetailsDialog.show(context, order),
       borderRadius: BorderRadius.circular(16),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),

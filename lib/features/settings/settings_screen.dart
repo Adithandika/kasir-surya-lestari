@@ -6,6 +6,9 @@ import '../../providers/license_provider.dart';
 import 'package:intl/intl.dart';
 import '../../core/theme.dart';
 import '../../core/widgets/app_widgets.dart';
+import '../../services/printer_service.dart';
+import 'package:esc_pos_utils_plus/esc_pos_utils_plus.dart';
+import '../../models/cart_item.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -16,18 +19,26 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   final TextEditingController _shopNameController = TextEditingController();
+  final TextEditingController _printerIpController = TextEditingController();
+  final TextEditingController _printerPortController = TextEditingController();
+  bool _isTestingPrinter = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _shopNameController.text = context.read<ThemeProvider>().shopName;
+      final tp = context.read<ThemeProvider>();
+      _shopNameController.text = tp.shopName;
+      _printerIpController.text = tp.printerIp;
+      _printerPortController.text = tp.printerPort.toString();
     });
   }
 
   @override
   void dispose() {
     _shopNameController.dispose();
+    _printerIpController.dispose();
+    _printerPortController.dispose();
     super.dispose();
   }
 
@@ -235,6 +246,109 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ),
                 const SizedBox(height: AppTheme.sectionGap),
+                const AppSectionTitle(title: "PENGATURAN PRINTER STRUK"),
+                const SizedBox(height: 16),
+                AppCard(
+                  padding: const EdgeInsets.all(32),
+                  radius: AppTheme.radiusLG,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.print_rounded, size: 20, color: ShadTheme.of(context).colorScheme.primary),
+                          const SizedBox(width: 12),
+                          const AppInputLabel(label: "IP Address Printer"),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      ShadInput(
+                        controller: _printerIpController,
+                        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                        placeholder: const Text("Contoh: 192.168.1.100"),
+                        leading: Icon(Icons.settings_ethernet_rounded, color: ShadTheme.of(context).colorScheme.mutedForeground, size: 20),
+                        onChanged: (val) => themeProvider.setPrinterIp(val),
+                      ),
+                      const SizedBox(height: 20),
+                      Row(
+                        children: [
+                          Icon(Icons.numbers_rounded, size: 20, color: ShadTheme.of(context).colorScheme.primary),
+                          const SizedBox(width: 12),
+                          const AppInputLabel(label: "Port Printer"),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      ShadInput(
+                        controller: _printerPortController,
+                        keyboardType: TextInputType.number,
+                        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                        placeholder: const Text("Contoh: 9100"),
+                        leading: Icon(Icons.tag_rounded, color: ShadTheme.of(context).colorScheme.mutedForeground, size: 20),
+                        onChanged: (val) {
+                          final port = int.tryParse(val) ?? 9100;
+                          themeProvider.setPrinterPort(port);
+                        },
+                      ),
+                      const SizedBox(height: 24),
+                      Row(
+                        children: [
+                          Icon(Icons.settings_overscan_rounded, size: 20, color: ShadTheme.of(context).colorScheme.primary),
+                          const SizedBox(width: 12),
+                          const AppInputLabel(label: "Ukuran Kertas"),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildPrinterPaperSizeToggleBtn(
+                              context,
+                              label: "58mm (Iware 58)",
+                              isSelected: themeProvider.printerPaperSize == '58mm',
+                              onTap: () {
+                                themeProvider.setPrinterPaperSize('58mm');
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: _buildPrinterPaperSizeToggleBtn(
+                              context,
+                              label: "80mm (Standar POS)",
+                              isSelected: themeProvider.printerPaperSize == '80mm',
+                              onTap: () {
+                                themeProvider.setPrinterPaperSize('80mm');
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+                      Divider(color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.05)),
+                      const SizedBox(height: 16),
+                      ShadButton(
+                        onPressed: _isTestingPrinter ? null : _testPrint,
+                        width: double.infinity,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            if (_isTestingPrinter)
+                              const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                              )
+                            else
+                              const Icon(Icons.print_rounded, size: 16),
+                            const SizedBox(width: 8),
+                            Text(_isTestingPrinter ? "Menghubungkan..." : "Tes Print Halaman"),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: AppTheme.sectionGap),
                 const AppSectionTitle(title: "AKSEN WARNA UTAMA"),
                 const SizedBox(height: 16),
                 AppCard(
@@ -347,6 +461,101 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _testPrint() async {
+    setState(() {
+      _isTestingPrinter = true;
+    });
+
+    final tp = context.read<ThemeProvider>();
+    final printerService = PrinterService(
+      ipAddress: tp.printerIp,
+      port: tp.printerPort,
+      paperSize: tp.printerPaperSize == '58mm' ? PaperSize.mm58 : PaperSize.mm80,
+    );
+
+    // Call printReceiptAndOpenDrawer with dummy data
+    final success = await printerService.printReceiptAndOpenDrawer(
+      [
+        CartItem(
+          productId: 0,
+          productName: 'Item Tes Koneksi',
+          price: 5000,
+          quantity: 1,
+          discount: 0,
+          costPrice: 3000,
+        ),
+      ],
+      5000,
+      0,
+      5000,
+      5000,
+      0,
+      memberName: 'Member Tes',
+      openDrawer: false,
+    );
+
+    setState(() {
+      _isTestingPrinter = false;
+    });
+
+    if (!mounted) return;
+    if (success) {
+      ShadSonner.of(context).show(
+        const ShadToast(
+          title: Text('Printer Berhasil Terhubung!'),
+          description: Text('Halaman tes cetak telah dikirim ke printer.'),
+        ),
+      );
+    } else {
+      ShadSonner.of(context).show(
+        ShadToast.destructive(
+          title: const Text('Koneksi Gagal'),
+          description: Text('Gagal terhubung ke printer di ${tp.printerIp}:${tp.printerPort}. Pastikan IP benar dan printer menyala.'),
+        ),
+      );
+    }
+  }
+
+  Widget _buildPrinterPaperSizeToggleBtn(
+    BuildContext context, {
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    final primary = ShadTheme.of(context).colorScheme.primary;
+    final primaryFg = ShadTheme.of(context).colorScheme.primaryForeground;
+    
+    return RepaintBoundary(
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: 300.ms,
+          curve: Curves.easeInOut,
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          decoration: BoxDecoration(
+            color: isSelected ? primary : Colors.transparent,
+            border: Border.all(
+              color: isSelected ? Colors.transparent : ShadTheme.of(context).colorScheme.border,
+              width: 1,
+            ),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Center(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 13,
+                color: isSelected ? primaryFg : ShadTheme.of(context).colorScheme.mutedForeground,
+                letterSpacing: -0.2,
+              ),
+            ),
           ),
         ),
       ),

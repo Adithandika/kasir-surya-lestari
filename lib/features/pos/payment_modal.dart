@@ -9,7 +9,9 @@ import '../../providers/license_provider.dart';
 import '../../providers/dashboard_provider.dart';
 import '../../providers/inventory_provider.dart';
 import '../../providers/member_provider.dart';
+import '../../providers/theme_provider.dart';
 import '../../services/printer_service.dart';
+import 'package:esc_pos_utils_plus/esc_pos_utils_plus.dart';
 
 class PaymentModalProvider with ChangeNotifier {
   double cashReceived = 0;
@@ -72,7 +74,6 @@ class _PaymentModalContent extends StatefulWidget {
 
 class _PaymentModalContentState extends State<_PaymentModalContent> {
   final TextEditingController _cashController = TextEditingController();
-  final PrinterService _printerService = PrinterService();
 
   @override
   void dispose() {
@@ -139,8 +140,15 @@ class _PaymentModalContentState extends State<_PaymentModalContent> {
     }
 
     // Hardware Trigger
+    final themeProvider = context.read<ThemeProvider>();
+    final printerService = PrinterService(
+      ipAddress: themeProvider.printerIp,
+      port: themeProvider.printerPort,
+      paperSize: themeProvider.printerPaperSize == '58mm' ? PaperSize.mm58 : PaperSize.mm80,
+    );
+
     if (printReceipt) {
-      _printerService.printReceiptAndOpenDrawer(
+      printerService.printReceiptAndOpenDrawer(
         order.items,
         order.subtotal,
         order.globalDiscount,
@@ -151,7 +159,7 @@ class _PaymentModalContentState extends State<_PaymentModalContent> {
         openDrawer: true,
       );
     } else {
-      _printerService.openCashDrawer();
+      printerService.openCashDrawer();
     }
 
     // Clear Cart & Close

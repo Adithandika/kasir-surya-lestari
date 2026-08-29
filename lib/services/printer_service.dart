@@ -73,15 +73,16 @@ class PrinterService {
           '${item.quantity} x ${currencyFormatter.format(item.price)}';
       String subtotalStr = currencyFormatter.format(item.subtotal);
 
+      final is58 = paperSize == PaperSize.mm58;
       bytes += generator.row([
         PosColumn(
           text: qtyAndPrice,
-          width: 8,
+          width: is58 ? 7 : 8,
           styles: const PosStyles(align: PosAlign.left),
         ),
         PosColumn(
           text: subtotalStr,
-          width: 4,
+          width: is58 ? 5 : 4,
           styles: const PosStyles(align: PosAlign.right),
         ),
       ]);
