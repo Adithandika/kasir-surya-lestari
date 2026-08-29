@@ -21,6 +21,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final TextEditingController _shopNameController = TextEditingController();
   final TextEditingController _printerIpController = TextEditingController();
   final TextEditingController _printerPortController = TextEditingController();
+  final TextEditingController _printerNameController = TextEditingController();
   bool _isTestingPrinter = false;
 
   @override
@@ -31,6 +32,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _shopNameController.text = tp.shopName;
       _printerIpController.text = tp.printerIp;
       _printerPortController.text = tp.printerPort.toString();
+      _printerNameController.text = tp.printerName;
     });
   }
 
@@ -39,6 +41,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _shopNameController.dispose();
     _printerIpController.dispose();
     _printerPortController.dispose();
+    _printerNameController.dispose();
     super.dispose();
   }
 
@@ -256,39 +259,135 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     children: [
                       Row(
                         children: [
-                          Icon(Icons.print_rounded, size: 20, color: ShadTheme.of(context).colorScheme.primary),
+                          Icon(Icons.settings_input_hdmi_rounded, size: 20, color: ShadTheme.of(context).colorScheme.primary),
                           const SizedBox(width: 12),
-                          const AppInputLabel(label: "IP Address Printer"),
+                          const AppInputLabel(label: "Tipe Koneksi Printer"),
                         ],
                       ),
                       const SizedBox(height: 12),
-                      ShadInput(
-                        controller: _printerIpController,
-                        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
-                        placeholder: const Text("Contoh: 192.168.1.100"),
-                        leading: Icon(Icons.settings_ethernet_rounded, color: ShadTheme.of(context).colorScheme.mutedForeground, size: 20),
-                        onChanged: (val) => themeProvider.setPrinterIp(val),
-                      ),
-                      const SizedBox(height: 20),
                       Row(
                         children: [
-                          Icon(Icons.numbers_rounded, size: 20, color: ShadTheme.of(context).colorScheme.primary),
-                          const SizedBox(width: 12),
-                          const AppInputLabel(label: "Port Printer"),
+                          Expanded(
+                            child: _buildPrinterPaperSizeToggleBtn(
+                              context,
+                              label: "WiFi / LAN (Jaringan)",
+                              isSelected: themeProvider.printerConnectionType == 'network',
+                              onTap: () {
+                                themeProvider.setPrinterConnectionType('network');
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: _buildPrinterPaperSizeToggleBtn(
+                              context,
+                              label: "USB / Local (Windows)",
+                              isSelected: themeProvider.printerConnectionType == 'usb_windows',
+                              onTap: () {
+                                themeProvider.setPrinterConnectionType('usb_windows');
+                              },
+                            ),
+                          ),
                         ],
                       ),
-                      const SizedBox(height: 12),
-                      ShadInput(
-                        controller: _printerPortController,
-                        keyboardType: TextInputType.number,
-                        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
-                        placeholder: const Text("Contoh: 9100"),
-                        leading: Icon(Icons.tag_rounded, color: ShadTheme.of(context).colorScheme.mutedForeground, size: 20),
-                        onChanged: (val) {
-                          final port = int.tryParse(val) ?? 9100;
-                          themeProvider.setPrinterPort(port);
-                        },
-                      ),
+                      const SizedBox(height: 24),
+                      if (themeProvider.printerConnectionType == 'network') ...[
+                        Row(
+                          children: [
+                            Icon(Icons.print_rounded, size: 20, color: ShadTheme.of(context).colorScheme.primary),
+                            const SizedBox(width: 12),
+                            const AppInputLabel(label: "IP Address Printer"),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        ShadInput(
+                          controller: _printerIpController,
+                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                          placeholder: const Text("Contoh: 192.168.1.100"),
+                          leading: Icon(Icons.settings_ethernet_rounded, color: ShadTheme.of(context).colorScheme.mutedForeground, size: 20),
+                          onChanged: (val) => themeProvider.setPrinterIp(val),
+                        ),
+                        const SizedBox(height: 20),
+                        Row(
+                          children: [
+                            Icon(Icons.numbers_rounded, size: 20, color: ShadTheme.of(context).colorScheme.primary),
+                            const SizedBox(width: 12),
+                            const AppInputLabel(label: "Port Printer"),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        ShadInput(
+                          controller: _printerPortController,
+                          keyboardType: TextInputType.number,
+                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                          placeholder: const Text("Contoh: 9100"),
+                          leading: Icon(Icons.tag_rounded, color: ShadTheme.of(context).colorScheme.mutedForeground, size: 20),
+                          onChanged: (val) {
+                            final port = int.tryParse(val) ?? 9100;
+                            themeProvider.setPrinterPort(port);
+                          },
+                        ),
+                      ] else ...[
+                        Row(
+                          children: [
+                            Icon(Icons.usb_rounded, size: 20, color: ShadTheme.of(context).colorScheme.primary),
+                            const SizedBox(width: 12),
+                            const AppInputLabel(label: "Nama Share Printer (Windows)"),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        ShadInput(
+                          controller: _printerNameController,
+                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                          placeholder: const Text("Contoh: POS-58"),
+                          leading: Icon(Icons.edit_note_rounded, color: ShadTheme.of(context).colorScheme.mutedForeground, size: 20),
+                          onChanged: (val) => themeProvider.setPrinterName(val),
+                        ),
+                        const SizedBox(height: 16),
+                        Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: ShadTheme.of(context).colorScheme.muted.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: ShadTheme.of(context).colorScheme.border.withValues(alpha: 0.3),
+                              width: 1,
+                            ),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Icon(Icons.info_outline_rounded, size: 18, color: ShadTheme.of(context).colorScheme.primary),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      "Panduan Printer USB:",
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w900,
+                                        color: ShadTheme.of(context).colorScheme.foreground,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      "1. Hubungkan printer ke PC Windows via kabel USB.\n2. Buka Control Panel -> Devices and Printers di Windows.\n3. Klik kanan printer Anda -> Printer Properties -> Sharing.\n4. Centang 'Share this printer' & masukkan nama share di atas (misal: POS-58).",
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: ShadTheme.of(context).colorScheme.mutedForeground,
+                                        height: 1.6,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 24),
                       Row(
                         children: [
@@ -474,6 +573,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     final tp = context.read<ThemeProvider>();
     final printerService = PrinterService(
+      connectionType: tp.printerConnectionType,
+      printerName: tp.printerName,
       ipAddress: tp.printerIp,
       port: tp.printerPort,
       paperSize: tp.printerPaperSize == '58mm' ? PaperSize.mm58 : PaperSize.mm80,
@@ -513,10 +614,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
       );
     } else {
+      final destStr = tp.printerConnectionType == 'usb_windows'
+          ? 'USB printer "${tp.printerName}"'
+          : '${tp.printerIp}:${tp.printerPort}';
       ShadSonner.of(context).show(
         ShadToast.destructive(
           title: const Text('Koneksi Gagal'),
-          description: Text('Gagal terhubung ke printer di ${tp.printerIp}:${tp.printerPort}. Pastikan IP benar dan printer menyala.'),
+          description: Text('Gagal terhubung ke $destStr. Pastikan konfigurasi benar dan printer menyala.'),
         ),
       );
     }

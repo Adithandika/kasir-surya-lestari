@@ -9,6 +9,8 @@ class ThemeProvider with ChangeNotifier {
   static const String _printerIpKey = 'printer_ip';
   static const String _printerPortKey = 'printer_port';
   static const String _printerPaperSizeKey = 'printer_paper_size';
+  static const String _printerConnectionTypeKey = 'printer_connection_type';
+  static const String _printerNameKey = 'printer_name';
 
   ThemeMode _themeMode = ThemeMode.system;
   Color _primaryColor = const Color(0xFF0EA5E9); // Sky blue instead of Indigo
@@ -17,6 +19,8 @@ class ThemeProvider with ChangeNotifier {
   String _printerIp = '192.168.1.100';
   int _printerPort = 9100;
   String _printerPaperSize = '80mm';
+  String _printerConnectionType = 'network'; // 'network' or 'usb_windows'
+  String _printerName = 'POS-58';
   bool _isInitialized = false;
 
   ThemeMode get themeMode => _themeMode;
@@ -26,6 +30,8 @@ class ThemeProvider with ChangeNotifier {
   String get printerIp => _printerIp;
   int get printerPort => _printerPort;
   String get printerPaperSize => _printerPaperSize;
+  String get printerConnectionType => _printerConnectionType;
+  String get printerName => _printerName;
   bool get isDarkMode {
     if (_themeMode == ThemeMode.system) {
       return WidgetsBinding.instance.platformDispatcher.platformBrightness == Brightness.dark;
@@ -63,6 +69,8 @@ class ThemeProvider with ChangeNotifier {
       _printerIp = prefs.getString(_printerIpKey) ?? '192.168.1.100';
       _printerPort = prefs.getInt(_printerPortKey) ?? 9100;
       _printerPaperSize = prefs.getString(_printerPaperSizeKey) ?? '80mm';
+      _printerConnectionType = prefs.getString(_printerConnectionTypeKey) ?? 'network';
+      _printerName = prefs.getString(_printerNameKey) ?? 'POS-58';
     } catch (e) {
       debugPrint('ThemeProvider: Failed to load settings: $e');
       // Fallback to default values already set
@@ -157,6 +165,30 @@ class ThemeProvider with ChangeNotifier {
       await prefs.setString(_printerPaperSizeKey, size);
     } catch (e) {
       debugPrint('ThemeProvider: Failed to save printer paper size: $e');
+    }
+  }
+
+  Future<void> setPrinterConnectionType(String type) async {
+    _printerConnectionType = type;
+    notifyListeners();
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_printerConnectionTypeKey, type);
+    } catch (e) {
+      debugPrint('ThemeProvider: Failed to save printer connection type: $e');
+    }
+  }
+
+  Future<void> setPrinterName(String name) async {
+    _printerName = name;
+    notifyListeners();
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_printerNameKey, name);
+    } catch (e) {
+      debugPrint('ThemeProvider: Failed to save printer name: $e');
     }
   }
 }

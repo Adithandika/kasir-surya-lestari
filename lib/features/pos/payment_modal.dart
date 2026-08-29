@@ -142,6 +142,8 @@ class _PaymentModalContentState extends State<_PaymentModalContent> {
     // Hardware Trigger
     final themeProvider = context.read<ThemeProvider>();
     final printerService = PrinterService(
+      connectionType: themeProvider.printerConnectionType,
+      printerName: themeProvider.printerName,
       ipAddress: themeProvider.printerIp,
       port: themeProvider.printerPort,
       paperSize: themeProvider.printerPaperSize == '58mm' ? PaperSize.mm58 : PaperSize.mm80,

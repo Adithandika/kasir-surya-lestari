@@ -2,17 +2,22 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:esc_pos_utils_plus/esc_pos_utils_plus.dart';
 import 'package:intl/intl.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as p;
 import '../models/cart_item.dart';
 
 class PrinterService {
   final PaperSize paperSize;
+  final String connectionType;
+  final String printerName;
   final String ipAddress;
   final int port;
 
   PrinterService({
     this.paperSize = PaperSize.mm80,
-    this.ipAddress =
-        '192.168.1.100', // Default IP for many thermal POS printers
+    this.connectionType = 'network',
+    this.printerName = 'POS-58',
+    this.ipAddress = '192.168.1.100',
     this.port = 9100,
   });
 
@@ -214,10 +219,14 @@ class PrinterService {
       );
       bytes.addAll(receiptBytes);
 
-      await _sendToNetworkPrinter(bytes);
+      if (connectionType == 'usb_windows') {
+        await _sendToWindowsUsbPrinter(bytes);
+      } else {
+        await _sendToNetworkPrinter(bytes);
+      }
       return true;
     } catch (e) {
-      debugPrint('Hardware Error: \$e');
+      debugPrint('Hardware Error: $e');
       return false;
     }
   }
@@ -226,10 +235,14 @@ class PrinterService {
   Future<bool> openCashDrawer() async {
     try {
       final bytes = _generateOpenDrawerBytes();
-      await _sendToNetworkPrinter(bytes);
+      if (connectionType == 'usb_windows') {
+        await _sendToWindowsUsbPrinter(bytes);
+      } else {
+        await _sendToNetworkPrinter(bytes);
+      }
       return true;
     } catch (e) {
-      debugPrint('Hardware Error: \$e');
+      debugPrint('Hardware Error: $e');
       return false;
     }
   }
@@ -247,9 +260,31 @@ class PrinterService {
       socket.add(bytes);
       await socket.flush();
     } catch (e) {
-      throw Exception('Could not connect to printer at \$ipAddress:\$port');
+      throw Exception('Could not connect to printer at $ipAddress:$port');
     } finally {
       socket?.destroy();
+    }
+  }
+
+  /// Send bytes to Local Windows USB Printer (via printer sharing spooler UNC path)
+  Future<void> _sendToWindowsUsbPrinter(List<int> bytes) async {
+    try {
+      final tempDir = await getTemporaryDirectory();
+      final tempFile = File(p.join(tempDir.path, 'receipt.bin'));
+      await tempFile.writeAsBytes(bytes);
+
+      // Run cmd command to copy bin file to shared printer UNC path
+      final result = await Process.run(
+        'cmd',
+        ['/c', 'copy', '/b', tempFile.path, '"\\\\127.0.0.1\\$printerName"'],
+        runInShell: true,
+      );
+
+      if (result.exitCode != 0) {
+        throw Exception('Exit code ${result.exitCode}: ${result.stderr}');
+      }
+    } catch (e) {
+      throw Exception('Gagal mengirim ke USB printer: $e');
     }
   }
 }
