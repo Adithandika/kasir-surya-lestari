@@ -7,10 +7,10 @@ import 'package:flutter_animate/flutter_animate.dart';
 import '../../core/theme.dart';
 import '../../providers/inventory_provider.dart';
 import '../../providers/cart_provider.dart';
-import '../../providers/member_provider.dart';
 import '../../providers/theme_provider.dart';
 import 'payment_modal.dart';
 import '../../core/widgets/app_widgets.dart';
+import '../../models/product.dart';
 
 class PosScreen extends StatefulWidget {
   const PosScreen({super.key});
@@ -64,11 +64,15 @@ class _PosScreenState extends State<PosScreen> {
 
   void _addProductToCartAndClear(dynamic product) {
     final cart = context.read<CartProvider>();
-    if (product.stock > 0) {
-      cart.addProduct(product);
-    } else {
+    final added = cart.addProduct(product);
+    if (!added) {
       ShadSonner.of(context).show(
-        ShadToast.destructive(title: Text('Stok habis: ${product.name}')),
+        ShadToast.destructive(
+          title: const Text('Stok tidak mencukupi'),
+          description: Text(product.stock <= 0
+              ? 'Stok produk "${product.name}" habis.'
+              : 'Stok produk "${product.name}" sudah maksimal (${product.stock}).'),
+        ),
       );
     }
     _barcodeController.clear();
@@ -255,17 +259,7 @@ class _PosScreenState extends State<PosScreen> {
                       ),
                     ),
 
-                    // Member Selection
-                    _buildMemberSelection(),
-
-                    const SizedBox(height: 16),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 24),
-                      child: Divider(
-                        height: 1,
-                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.05),
-                      ),
-                    ),
+                    const SizedBox(height: 8),
 
                     // Active Items List
                     Expanded(child: _buildCartItemsList()),
@@ -321,238 +315,7 @@ class _PosScreenState extends State<PosScreen> {
     );
   }
 
-  Widget _buildMemberSelection() {
-    return Consumer2<CartProvider, MemberProvider>(
-      builder: (context, cart, memberProvider, child) {
-        final member = cart.selectedMember;
-        final theme = Theme.of(context);
-        
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-          child: AppCard(
-            padding: EdgeInsets.zero,
-            radius: AppTheme.radiusSM,
-            color: theme.colorScheme.surface,
-            border: Border.all(color: theme.colorScheme.outline.withValues(alpha: 0.05)),
-            child: InkWell(
-              onTap: () => _showMemberSelectionDialog(context, memberProvider, cart),
-              borderRadius: BorderRadius.circular(AppTheme.radiusSM),
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: member == null 
-                          ? theme.primaryColor.withValues(alpha: 0.1) 
-                          : theme.primaryColor,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(
-                        member == null ? Icons.person_add_rounded : Icons.person_rounded,
-                        color: member == null ? theme.primaryColor : Colors.white,
-                        size: 20,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            member?.name ?? "Pilih Member",
-                            style: TextStyle(
-                              fontWeight: FontWeight.w900,
-                              fontSize: 14,
-                              color: member == null
-                                  ? theme.colorScheme.onSurface.withValues(alpha: 0.3)
-                                  : theme.colorScheme.onSurface,
-                            ),
-                          ),
-                          if (member != null)
-                            Text(
-                              member.phone,
-                              style: TextStyle(
-                                color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                    if (member != null)
-                      IconButton(
-                        icon: Icon(Icons.close_rounded, size: 18, color: theme.colorScheme.onSurface.withValues(alpha: 0.3)),
-                        onPressed: () => cart.setMember(null),
-                        visualDensity: VisualDensity.compact,
-                      )
-                    else
-                      Icon(Icons.chevron_right_rounded, color: theme.colorScheme.onSurface.withValues(alpha: 0.2), size: 20),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
 
-  void _showMemberSelectionDialog(
-    BuildContext context,
-    MemberProvider provider,
-    CartProvider cart,
-  ) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final searchController = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (context) => Dialog(
-        backgroundColor: theme.colorScheme.surface,
-        surfaceTintColor: Colors.transparent,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.radiusMD)),
-        child: Container(
-          padding: const EdgeInsets.all(32),
-          width: 500,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const AppBadge(label: "MEMBERSHIP"),
-                      const SizedBox(height: 12),
-                      Text(
-                        "Pilih Member",
-                        style: TextStyle(
-                          fontSize: 24, 
-                          fontWeight: FontWeight.w900,
-                          color: theme.colorScheme.onSurface,
-                          letterSpacing: -1,
-                        ),
-                      ),
-                    ],
-                  ),
-                  IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.close_rounded),
-                    style: IconButton.styleFrom(
-                      backgroundColor: theme.scaffoldBackgroundColor,
-                      padding: const EdgeInsets.all(12),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-              AppSearchField(
-                controller: searchController,
-                placeholder: "Cari nama atau telepon...",
-                onChanged: (v) => provider.searchMember(v),
-              ),
-              const SizedBox(height: 24),
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxHeight: 400),
-                child: Consumer<MemberProvider>(
-                  builder: (context, provider, child) {
-                    if (provider.members.isEmpty) {
-                      return Center(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 40),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.person_off_rounded, size: 48, color: theme.colorScheme.onSurface.withValues(alpha: 0.1)),
-                              const SizedBox(height: 16),
-                              Text(
-                                "Member tidak ditemukan",
-                                style: TextStyle(
-                                  color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    }
-                    return ListView.separated(
-                      shrinkWrap: true,
-                      padding: EdgeInsets.zero,
-                      itemCount: provider.members.length,
-                      separatorBuilder: (context, index) => const SizedBox(height: 12),
-                      itemBuilder: (context, index) {
-                        final m = provider.members[index];
-                        return Container(
-                          decoration: BoxDecoration(
-                            color: isDark ? AppTheme.slate900 : AppTheme.slate50,
-                            borderRadius: BorderRadius.circular(AppTheme.radiusSM),
-                            border: Border.all(color: theme.colorScheme.outline.withValues(alpha: 0.05)),
-                          ),
-                          child: ListTile(
-                            onTap: () {
-                              cart.setMember(m);
-                              Navigator.pop(context);
-                            },
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.radiusSM)),
-                            leading: Container(
-                              width: 44,
-                              height: 44,
-                              decoration: BoxDecoration(
-                                color: theme.primaryColor.withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Icon(Icons.person_rounded, color: theme.primaryColor, size: 24),
-                            ),
-                            title: Text(
-                              m.name, 
-                              style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14)
-                            ),
-                            subtitle: Text(
-                              m.phone, 
-                              style: TextStyle(
-                                fontSize: 11, 
-                                fontWeight: FontWeight.w600,
-                                color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
-                              )
-                            ),
-                            trailing: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                              decoration: BoxDecoration(
-                                color: theme.primaryColor,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                "${m.points} P",
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w900,
-                                  fontSize: 11,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ).animate(delay: (index * 30).ms).fadeIn().slideY(begin: 0.05, duration: 400.ms);
-                      },
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 
   Widget _buildProductList() {
     final theme = Theme.of(context);
@@ -590,8 +353,17 @@ class _PosScreenState extends State<PosScreen> {
               index: index, 
               currencyFormatter: currencyFormatter,
               onTap: () {
-                if (product.stock > 0) {
-                  context.read<CartProvider>().addProduct(product);
+                final cart = context.read<CartProvider>();
+                final added = cart.addProduct(product);
+                if (!added) {
+                  ShadSonner.of(context).show(
+                    ShadToast.destructive(
+                      title: const Text('Stok tidak mencukupi'),
+                      description: Text(product.stock <= 0
+                          ? 'Stok produk "${product.name}" habis.'
+                          : 'Stok produk "${product.name}" sudah maksimal (${product.stock}).'),
+                    ),
+                  );
                 }
                 _barcodeFocus.requestFocus();
               },
@@ -643,8 +415,17 @@ class _PosScreenState extends State<PosScreen> {
               index: index, 
               currencyFormatter: currencyFormatter,
               onTap: () {
-                if (product.stock > 0) {
-                  context.read<CartProvider>().addProduct(product);
+                final cart = context.read<CartProvider>();
+                final added = cart.addProduct(product);
+                if (!added) {
+                  ShadSonner.of(context).show(
+                    ShadToast.destructive(
+                      title: const Text('Stok tidak mencukupi'),
+                      description: Text(product.stock <= 0
+                          ? 'Stok produk "${product.name}" habis.'
+                          : 'Stok produk "${product.name}" sudah maksimal (${product.stock}).'),
+                    ),
+                  );
                 }
                 _barcodeFocus.requestFocus();
               },
@@ -700,10 +481,44 @@ class _PosScreenState extends State<PosScreen> {
           decimalDigits: 0,
         );
 
-        return ListView.builder(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          itemCount: cart.items.length,
-          itemBuilder: (context, index) {
+        return Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    "${cart.totalItems} Produk",
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
+                    ),
+                  ),
+                  TextButton.icon(
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppTheme.errorColor,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    icon: const Icon(Icons.delete_sweep_rounded, size: 14),
+                    label: const Text(
+                      "Hapus Semua",
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                    ),
+                    onPressed: () {
+                      _showClearCartConfirmationDialog(context, cart);
+                    },
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: ListView.builder(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                itemCount: cart.items.length,
+                itemBuilder: (context, index) {
             final item = cart.items[index];
             return Container(
               margin: const EdgeInsets.only(bottom: 12),
@@ -804,17 +619,55 @@ class _PosScreenState extends State<PosScreen> {
                           icon: Icon(Icons.add_rounded, size: 14, color: Theme.of(context).primaryColor),
                           onPressed: item.productId == null
                               ? null
-                              : () => cart.updateQuantity(item.productId!, item.quantity + 1),
+                              : () {
+                                  final inventory = context.read<InventoryProvider>();
+                                  final prod = inventory.products.cast<Product?>().firstWhere(
+                                    (p) => p?.id == item.productId,
+                                    orElse: () => null,
+                                  );
+                                  final maxStock = prod?.stock ?? 9999;
+                                  final updated = cart.updateQuantity(
+                                    item.productId!,
+                                    item.quantity + 1,
+                                    maxStock: maxStock,
+                                  );
+                                  if (!updated) {
+                                    ShadSonner.of(context).show(
+                                      ShadToast.destructive(
+                                        title: const Text('Stok tidak mencukupi'),
+                                        description: Text('Stok produk "${item.productName}" sudah maksimal ($maxStock).'),
+                                      ),
+                                    );
+                                  }
+                                },
                           visualDensity: VisualDensity.compact,
                         ),
                       ],
                     ),
                   ),
+                  const SizedBox(width: 4),
+                  IconButton(
+                    icon: Icon(
+                      Icons.delete_outline_rounded,
+                      size: 16,
+                      color: AppTheme.errorColor.withValues(alpha: 0.8),
+                    ),
+                    onPressed: item.productId == null
+                        ? null
+                        : () {
+                            cart.removeProduct(item.productId!);
+                            _barcodeFocus.requestFocus();
+                          },
+                    visualDensity: VisualDensity.compact,
+                  ),
                 ],
               ),
             ).animate().fadeIn().scale(begin: const Offset(0.95, 0.95), curve: Curves.easeOutBack);
           },
-        );
+        ),
+      ),
+    ],
+  );
       },
     );
   }
@@ -1079,6 +932,34 @@ class _PosScreenState extends State<PosScreen> {
           ),
         );
       },
+    );
+  }
+
+  void _showClearCartConfirmationDialog(BuildContext context, CartProvider cart) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text(
+          'Hapus Semua Pesanan?',
+          style: TextStyle(fontWeight: FontWeight.w900),
+        ),
+        content: const Text('Apakah Anda yakin ingin menghapus seluruh produk dari keranjang belanja ini?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Batal', style: TextStyle(fontWeight: FontWeight.w700)),
+          ),
+          TextButton(
+            style: TextButton.styleFrom(foregroundColor: AppTheme.errorColor),
+            onPressed: () {
+              cart.clearCart();
+              Navigator.of(context).pop();
+              _barcodeFocus.requestFocus();
+            },
+            child: const Text('Hapus Semua', style: TextStyle(fontWeight: FontWeight.w900)),
+          ),
+        ],
+      ),
     );
   }
 }

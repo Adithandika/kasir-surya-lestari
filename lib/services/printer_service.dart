@@ -12,6 +12,10 @@ class PrinterService {
   final String printerName;
   final String ipAddress;
   final int port;
+  final String shopName;
+  final String shopAddress;
+  final String shopPhone;
+  final String cashierName;
 
   PrinterService({
     this.paperSize = PaperSize.mm80,
@@ -19,6 +23,10 @@ class PrinterService {
     this.printerName = 'POS-58',
     this.ipAddress = '192.168.1.100',
     this.port = 9100,
+    this.shopName = 'Cashierya App',
+    this.shopAddress = '',
+    this.shopPhone = '',
+    this.cashierName = 'Anggi',
   });
 
   final currencyFormatter = NumberFormat.currency(
@@ -27,6 +35,20 @@ class PrinterService {
     decimalDigits: 0,
   );
 
+  String _formatCurrency(double amount) {
+    final formatter = NumberFormat.decimalPattern('id');
+    return 'Rp ${formatter.format(amount)}';
+  }
+
+  String _formatRow(String left, String right, bool is58) {
+    int maxChars = is58 ? 32 : 48;
+    int padLength = maxChars - left.length - right.length;
+    if (padLength < 1) {
+      return '$left $right';
+    }
+    return left + ' ' * padLength + right;
+  }
+
   /// Generates the raw bytes for the receipt using ESC/POS protocol
   Future<List<int>> _generateReceiptBytes(
     List<CartItem> items,
@@ -34,16 +56,27 @@ class PrinterService {
     double globalDiscount,
     double total,
     double cashReceived,
-    double change,
-    {String? memberName}
-  ) async {
+    double change, {
+    String? memberName,
+    int? orderId,
+    DateTime? transactionDate,
+  }) async {
+    final isPrinter58 = paperSize == PaperSize.mm58 ||
+        printerName.toLowerCase().contains('58') ||
+        printerName.toLowerCase().contains('cla58');
+    final actualPaperSize = isPrinter58 ? PaperSize.mm58 : PaperSize.mm80;
+
     final profile = await CapabilityProfile.load();
-    final generator = Generator(paperSize, profile);
+    final generator = Generator(actualPaperSize, profile);
     List<int> bytes = [];
+    final is58 = actualPaperSize == PaperSize.mm58;
+    final dividerLine = is58
+        ? '--------------------------------'
+        : '------------------------------------------------';
 
     // Header
     bytes += generator.text(
-      'SEMBAKO JAYA',
+      shopName,
       styles: const PosStyles(
         align: PosAlign.center,
         height: PosTextSize.size2,
@@ -51,133 +84,99 @@ class PrinterService {
         bold: true,
       ),
     );
-    bytes += generator.text(
-      'Jl. Merdeka No. 123, Jakarta',
-      styles: const PosStyles(align: PosAlign.center),
-    );
-    bytes += generator.text(
-      'Telp: 0812-3456-7890',
-      styles: const PosStyles(align: PosAlign.center),
-    );
-    bytes += generator.feed(1);
-    
-    if (memberName != null) {
-      bytes += generator.text('Member: $memberName', styles: const PosStyles(align: PosAlign.center, bold: true));
-      bytes += generator.feed(1);
+    if (shopAddress.isNotEmpty) {
+      bytes += generator.text(
+        shopAddress,
+        styles: const PosStyles(align: PosAlign.center),
+      );
     }
-    
-    bytes += generator.hr();
+    if (shopPhone.isNotEmpty) {
+      bytes += generator.text(
+        shopPhone,
+        styles: const PosStyles(align: PosAlign.center),
+      );
+    }
+
+    // Always print transaction ID as in the image
+    final printDate = transactionDate ?? DateTime.now();
+    final txId = orderId != null
+        ? '767132${DateFormat('yyyyMMddHHmmss').format(printDate)}'
+        : '76713220210409203314';
+    bytes += generator.text(
+      txId,
+      styles: const PosStyles(align: PosAlign.center),
+    );
+
+    bytes += generator.feed(1);
+    bytes += generator.text(
+      dividerLine,
+      styles: const PosStyles(align: PosAlign.center),
+    );
+
+    // Transaction Metadata (Date, Time, Cashier, Order ID)
+    final dateStr = DateFormat('yyyy-MM-dd').format(printDate);
+    final timeStr = DateFormat('HH:mm:ss').format(printDate);
+    final idStr = orderId != null ? 'No.0-$orderId' : 'No.0-5';
+
+    bytes += generator.text(_formatRow(dateStr, memberName ?? '-', is58));
+    bytes += generator.text(_formatRow(timeStr, cashierName, is58));
+    bytes += generator.text(_formatRow(idStr, '', is58));
+
+    bytes += generator.text(
+      dividerLine,
+      styles: const PosStyles(align: PosAlign.center),
+    );
+
+    final plainNumberFormatter = NumberFormat.decimalPattern('id');
 
     // Items
     for (var item in items) {
-      bytes += generator.text(
-        item.productName ?? 'Produk',
-        styles: const PosStyles(bold: true),
-      );
+      bytes += generator.text(item.productName ?? 'Produk');
       String qtyAndPrice =
-          '${item.quantity} x ${currencyFormatter.format(item.price)}';
-      String subtotalStr = currencyFormatter.format(item.subtotal);
+          '${item.quantity} x ${plainNumberFormatter.format(item.price)}';
+      String subtotalStr = _formatCurrency(item.subtotal);
 
-      final is58 = paperSize == PaperSize.mm58;
-      bytes += generator.row([
-        PosColumn(
-          text: qtyAndPrice,
-          width: is58 ? 7 : 8,
-          styles: const PosStyles(align: PosAlign.left),
-        ),
-        PosColumn(
-          text: subtotalStr,
-          width: is58 ? 5 : 4,
-          styles: const PosStyles(align: PosAlign.right),
-        ),
-      ]);
+      bytes += generator.text(_formatRow(qtyAndPrice, subtotalStr, is58));
 
       if (item.discount > 0) {
         bytes += generator.text(
-          '   (Diskon: -${currencyFormatter.format(item.discount * item.quantity)})',
+          '   (Diskon: -${_formatCurrency(item.discount * item.quantity)})',
           styles: const PosStyles(align: PosAlign.left),
         );
       }
     }
-    bytes += generator.hr();
+    bytes += generator.text(
+      dividerLine,
+      styles: const PosStyles(align: PosAlign.center),
+    );
 
     // Totals
-    bytes += generator.row([
-      PosColumn(
-        text: 'SUBTOTAL',
-        width: 6,
-        styles: const PosStyles(align: PosAlign.left),
-      ),
-      PosColumn(
-        text: currencyFormatter.format(subtotal),
-        width: 6,
-        styles: const PosStyles(align: PosAlign.right),
-      ),
-    ]);
-
     if (globalDiscount > 0) {
-      bytes += generator.row([
-        PosColumn(
-          text: 'DISKON GLOBAL',
-          width: 6,
-          styles: const PosStyles(align: PosAlign.left),
-        ),
-        PosColumn(
-          text: '-${currencyFormatter.format(globalDiscount)}',
-          width: 6,
-          styles: const PosStyles(align: PosAlign.right),
-        ),
-      ]);
+      bytes += generator.text(_formatRow('Subtotal', _formatCurrency(subtotal), is58));
+      bytes += generator.text(_formatRow('Diskon Global', '-${_formatCurrency(globalDiscount)}', is58));
     }
 
-    bytes += generator.row([
-      PosColumn(
-        text: 'TOTAL',
-        width: 6,
-        styles: const PosStyles(bold: true, align: PosAlign.left),
-      ),
-      PosColumn(
-        text: currencyFormatter.format(total),
-        width: 6,
-        styles: const PosStyles(bold: true, align: PosAlign.right),
-      ),
-    ]);
-    bytes += generator.hr();
-
-    bytes += generator.row([
-      PosColumn(
-        text: 'TUNAI',
-        width: 6,
-        styles: const PosStyles(align: PosAlign.left),
-      ),
-      PosColumn(
-        text: currencyFormatter.format(cashReceived),
-        width: 6,
-        styles: const PosStyles(align: PosAlign.right),
-      ),
-    ]);
-    bytes += generator.row([
-      PosColumn(
-        text: 'KEMBALI',
-        width: 6,
-        styles: const PosStyles(align: PosAlign.left),
-      ),
-      PosColumn(
-        text: currencyFormatter.format(change),
-        width: 6,
-        styles: const PosStyles(align: PosAlign.right),
-      ),
-    ]);
+    bytes += generator.text(_formatRow('Total', _formatCurrency(total), is58));
+    bytes += generator.text(_formatRow('Bayar', _formatCurrency(cashReceived), is58));
+    bytes += generator.text(_formatRow('Kembali', _formatCurrency(change), is58));
     bytes += generator.feed(1);
 
     // Footer
     bytes += generator.text(
-      'Terima Kasih Atas Kunjungan Anda',
+      'Terima kasih atas kunjungan anda',
       styles: const PosStyles(align: PosAlign.center),
     );
     bytes += generator.text(
-      'Barang yang sudah dibeli tidak dapat ditukar',
+      'Semoga anda puas dengan layanan kami',
       styles: const PosStyles(align: PosAlign.center),
+    );
+    bytes += generator.text(
+      '--------------',
+      styles: const PosStyles(align: PosAlign.center),
+    );
+    bytes += generator.text(
+      '"Pembeli adalah raja"',
+      styles: const PosStyles(align: PosAlign.center, bold: true),
     );
     bytes += generator.feed(2);
     bytes += generator.cut();
@@ -192,7 +191,7 @@ class PrinterService {
   }
 
   /// Central method to trigger hardware (Print & Open Drawer)
-  Future<bool> printReceiptAndOpenDrawer(
+  Future<String?> printReceiptAndOpenDrawer(
     List<CartItem> items,
     double subtotal,
     double globalDiscount,
@@ -201,6 +200,8 @@ class PrinterService {
     double change, {
     String? memberName,
     bool openDrawer = true,
+    int? orderId,
+    DateTime? transactionDate,
   }) async {
     try {
       List<int> bytes = [];
@@ -216,34 +217,52 @@ class PrinterService {
         cashReceived,
         change,
         memberName: memberName,
+        orderId: orderId,
+        transactionDate: transactionDate,
       );
       bytes.addAll(receiptBytes);
 
-      if (connectionType == 'usb_windows') {
-        await _sendToWindowsUsbPrinter(bytes);
+      if (connectionType == 'usb_windows' ||
+          connectionType == 'usb_macos' ||
+          connectionType == 'usb') {
+        if (Platform.isWindows) {
+          await _sendToWindowsUsbPrinter(bytes);
+        } else if (Platform.isMacOS || Platform.isLinux) {
+          await _sendToMacOsUsbPrinter(bytes);
+        } else {
+          throw Exception('Koneksi USB tidak didukung di platform ini');
+        }
       } else {
         await _sendToNetworkPrinter(bytes);
       }
-      return true;
+      return null;
     } catch (e) {
       debugPrint('Hardware Error: $e');
-      return false;
+      return e.toString();
     }
   }
 
   /// Send purely the open drawer command
-  Future<bool> openCashDrawer() async {
+  Future<String?> openCashDrawer() async {
     try {
       final bytes = _generateOpenDrawerBytes();
-      if (connectionType == 'usb_windows') {
-        await _sendToWindowsUsbPrinter(bytes);
+      if (connectionType == 'usb_windows' ||
+          connectionType == 'usb_macos' ||
+          connectionType == 'usb') {
+        if (Platform.isWindows) {
+          await _sendToWindowsUsbPrinter(bytes);
+        } else if (Platform.isMacOS || Platform.isLinux) {
+          await _sendToMacOsUsbPrinter(bytes);
+        } else {
+          throw Exception('Koneksi USB tidak didukung di platform ini');
+        }
       } else {
         await _sendToNetworkPrinter(bytes);
       }
-      return true;
+      return null;
     } catch (e) {
       debugPrint('Hardware Error: $e');
-      return false;
+      return e.toString();
     }
   }
 
@@ -271,14 +290,19 @@ class PrinterService {
     try {
       final tempDir = await getTemporaryDirectory();
       final tempFile = File(p.join(tempDir.path, 'receipt.bin'));
+      if (!await tempFile.parent.exists()) {
+        await tempFile.parent.create(recursive: true);
+      }
       await tempFile.writeAsBytes(bytes);
 
       // Run cmd command to copy bin file to shared printer UNC path
-      final result = await Process.run(
-        'cmd',
-        ['/c', 'copy', '/b', tempFile.path, '"\\\\127.0.0.1\\$printerName"'],
-        runInShell: true,
-      );
+      final result = await Process.run('cmd', [
+        '/c',
+        'copy',
+        '/b',
+        tempFile.path,
+        '"\\\\127.0.0.1\\$printerName"',
+      ], runInShell: true);
 
       if (result.exitCode != 0) {
         throw Exception('Exit code ${result.exitCode}: ${result.stderr}');
@@ -286,5 +310,124 @@ class PrinterService {
     } catch (e) {
       throw Exception('Gagal mengirim ke USB printer: $e');
     }
+  }
+
+  /// Send bytes to Local macOS/Linux USB Printer (via CUPS lp command)
+  Future<void> _sendToMacOsUsbPrinter(List<int> bytes) async {
+    try {
+      final tempDir = await getTemporaryDirectory();
+      final tempFile = File(p.join(tempDir.path, 'receipt.bin'));
+      if (!await tempFile.parent.exists()) {
+        await tempFile.parent.create(recursive: true);
+      }
+      await tempFile.writeAsBytes(bytes);
+
+      // Run lp command to print raw bytes to the printer queue
+      final result = await Process.run('lp', [
+        '-d',
+        printerName,
+        '-o',
+        'raw',
+        tempFile.path,
+      ]);
+
+      if (result.exitCode != 0) {
+        throw Exception('Exit code ${result.exitCode}: ${result.stderr}');
+      }
+    } catch (e) {
+      throw Exception('Gagal mengirim ke USB printer macOS/Linux: $e');
+    }
+  }
+
+  /// Get list of local printers installed on the system (Windows / macOS / Linux)
+  static Future<List<String>> getLocalPrinters() async {
+    try {
+      if (Platform.isMacOS || Platform.isLinux) {
+        final result = await Process.run('lpstat', ['-e']);
+        if (result.exitCode == 0) {
+          final output = result.stdout.toString().trim();
+          if (output.isEmpty) return [];
+          return output
+              .split(RegExp(r'\r?\n'))
+              .map((e) => e.trim())
+              .where((e) => e.isNotEmpty)
+              .toList();
+        }
+      } else if (Platform.isWindows) {
+        final result = await Process.run('powershell', [
+          '-Command',
+          'Get-Printer | Select-Object -ExpandProperty Name',
+        ]);
+        if (result.exitCode == 0) {
+          final output = result.stdout.toString().trim();
+          if (output.isEmpty) return [];
+          return output
+              .split(RegExp(r'\r?\n'))
+              .map((e) => e.trim())
+              .where((e) => e.isNotEmpty)
+              .toList();
+        }
+      }
+    } catch (e) {
+      debugPrint('Error getting local printers: $e');
+    }
+    return [];
+  }
+
+  /// Automatically detect and register any connected USB printers on macOS/Linux
+  static Future<Map<String, String>> autoDetectAndRegisterUsbPrinters() async {
+    Map<String, String> registered = {};
+    try {
+      if (Platform.isMacOS || Platform.isLinux) {
+        // Run the CUPS USB backend to detect connected USB printers
+        final detectResult = await Process.run(
+          '/usr/libexec/cups/backend/usb',
+          [],
+        );
+        if (detectResult.exitCode == 0) {
+          final output = detectResult.stdout.toString().trim();
+          if (output.isNotEmpty) {
+            final lines = output.split(RegExp(r'\r?\n'));
+            for (var line in lines) {
+              final parts = line.split(' ');
+              if (parts.isNotEmpty && parts[0] == 'direct') {
+                final uri = parts[1];
+                final parsedUri = Uri.parse(uri);
+                String name = '';
+                if (parsedUri.path.isNotEmpty) {
+                  name = parsedUri.path
+                      .split('/')
+                      .lastWhere((e) => e.isNotEmpty, orElse: () => '');
+                }
+                if (name.isEmpty && parsedUri.host.isNotEmpty) {
+                  name = parsedUri.host;
+                }
+                if (name.isEmpty) {
+                  name = 'USB_Printer';
+                }
+                name = name.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
+
+                if (name.isNotEmpty && uri.isNotEmpty) {
+                  // Register via lpadmin without the deprecated -m raw flag
+                  final regResult = await Process.run('lpadmin', [
+                    '-p',
+                    name,
+                    '-v',
+                    uri,
+                    '-E',
+                  ]);
+                  if (regResult.exitCode == 0) {
+                    registered[name] = uri;
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error auto-detecting USB printer: $e');
+    }
+    return registered;
   }
 }

@@ -37,11 +37,17 @@ class CartProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  void addProduct(Product product) {
+  bool addProduct(Product product) {
     var index = _items.indexWhere((item) => item.productId == product.id);
     if (index != -1) {
+      if (_items[index].quantity >= product.stock) {
+        return false;
+      }
       _items[index].quantity++;
     } else {
+      if (product.stock <= 0) {
+        return false;
+      }
       _items.add(CartItem(
         productId: product.id,
         productName: product.name,
@@ -54,6 +60,7 @@ class CartProvider with ChangeNotifier {
       ));
     }
     notifyListeners();
+    return true;
   }
 
   void updateItemDiscount(int productId, double discount) {
@@ -69,16 +76,21 @@ class CartProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  void updateQuantity(int id, int quantity) {
+  bool updateQuantity(int id, int quantity, {int? maxStock}) {
     if (quantity <= 0) {
       removeProduct(id);
-      return;
+      return true;
+    }
+    if (maxStock != null && quantity > maxStock) {
+      return false;
     }
     var index = _items.indexWhere((item) => item.productId == id);
     if (index != -1) {
       _items[index].quantity = quantity;
       notifyListeners();
+      return true;
     }
+    return false;
   }
 
   void clearCart() {

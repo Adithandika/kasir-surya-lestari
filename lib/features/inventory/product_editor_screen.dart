@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 import 'package:image_picker/image_picker.dart';
@@ -53,6 +54,23 @@ class _ProductEditorScreenState extends State<ProductEditorScreen> {
     _sellingPriceCtrl.dispose();
     _stockCtrl.dispose();
     super.dispose();
+  }
+
+  void _generateUniqueBarcode() {
+    final inventory = context.read<InventoryProvider>();
+    String newBarcode;
+    do {
+      final random = Random();
+      final sb = StringBuffer('899');
+      for (int i = 0; i < 9; i++) {
+        sb.write(random.nextInt(10));
+      }
+      newBarcode = sb.toString();
+    } while (inventory.findByBarcode(newBarcode) != null);
+
+    setState(() {
+      _barcodeCtrl.text = newBarcode;
+    });
   }
 
   void _save() {
@@ -440,8 +458,20 @@ class _ProductEditorScreenState extends State<ProductEditorScreen> {
             controller: _nameCtrl,
             label: 'Nama Produk',
             icon: Icons.inventory_2_rounded,
-            validator: (val) =>
-                val == null || val.isEmpty ? 'Nama wajib diisi' : null,
+            validator: (val) {
+              if (val == null || val.trim().isEmpty) {
+                return 'Nama wajib diisi';
+              }
+              final cleanName = val.trim().toLowerCase();
+              final inventory = context.read<InventoryProvider>();
+              final exists = inventory.products.any((p) =>
+                  p.name.toLowerCase() == cleanName &&
+                  p.id != widget.productToEdit?.id);
+              if (exists) {
+                return 'Nama produk sudah terdaftar';
+              }
+              return null;
+            },
           ),
           const SizedBox(height: 24),
           Row(
@@ -452,8 +482,28 @@ class _ProductEditorScreenState extends State<ProductEditorScreen> {
                   controller: _barcodeCtrl,
                   label: 'Barcode / SKU',
                   icon: Icons.qr_code_scanner_rounded,
-                  validator: (val) =>
-                      val == null || val.isEmpty ? 'Barcode wajib diisi' : null,
+                  trailing: ShadButton.ghost(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    onPressed: _generateUniqueBarcode,
+                    child: Icon(
+                      Icons.auto_awesome_rounded, 
+                      size: 20, 
+                      color: Theme.of(context).primaryColor,
+                    ),
+                  ),
+                  validator: (val) {
+                    if (val == null || val.trim().isEmpty) {
+                      return 'Barcode wajib diisi';
+                    }
+                    final cleanBarcode = val.trim();
+                    final inventory = context.read<InventoryProvider>();
+                    final existingProduct = inventory.findByBarcode(cleanBarcode);
+                    if (existingProduct != null &&
+                        existingProduct.id != widget.productToEdit?.id) {
+                      return 'Barcode sudah digunakan oleh produk lain';
+                    }
+                    return null;
+                  },
                 ),
               ),
               const SizedBox(width: 20),
@@ -527,6 +577,7 @@ class _ProductEditorScreenState extends State<ProductEditorScreen> {
     required String label,
     IconData? icon,
     String? prefix,
+    Widget? trailing,
     String? Function(String?)? validator,
     TextInputType? keyboardType,
   }) {
@@ -539,7 +590,8 @@ class _ProductEditorScreenState extends State<ProductEditorScreen> {
           controller: controller,
           validator: validator,
           keyboardType: keyboardType,
-          leading: icon != null ? Icon(icon, size: 18) : (prefix != null ? Text(prefix!, style: TextStyle(color: ShadTheme.of(context).colorScheme.mutedForeground, fontWeight: FontWeight.w700)) : null),
+          leading: icon != null ? Icon(icon, size: 18) : (prefix != null ? Text(prefix, style: TextStyle(color: ShadTheme.of(context).colorScheme.mutedForeground, fontWeight: FontWeight.w700)) : null),
+          trailing: trailing,
         ),
       ],
     );

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:io';
 import 'package:shadcn_ui/shadcn_ui.dart';
 import 'package:provider/provider.dart';
 import '../../providers/theme_provider.dart';
@@ -19,10 +20,75 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   final TextEditingController _shopNameController = TextEditingController();
+  final TextEditingController _shopAddressController = TextEditingController();
+  final TextEditingController _shopPhoneController = TextEditingController();
+  final TextEditingController _cashierNameController = TextEditingController();
   final TextEditingController _printerIpController = TextEditingController();
   final TextEditingController _printerPortController = TextEditingController();
   final TextEditingController _printerNameController = TextEditingController();
   bool _isTestingPrinter = false;
+  List<String> _localPrinters = [];
+  bool _isLoadingPrinters = false;
+  bool _isAutoConfiguring = false;
+
+  Future<void> _autoConfigureUsbPrinter() async {
+    setState(() {
+      _isAutoConfiguring = true;
+      _isLoadingPrinters = true;
+    });
+
+    final registered = await PrinterService.autoDetectAndRegisterUsbPrinters();
+    
+    setState(() {
+      _isAutoConfiguring = false;
+      _isLoadingPrinters = false;
+    });
+
+    if (!mounted) return;
+
+    if (registered.isNotEmpty) {
+      final printerName = registered.keys.first;
+      _printerNameController.text = printerName;
+      context.read<ThemeProvider>().setPrinterName(printerName);
+      _scanLocalPrinters(); // Refresh the list
+
+      ShadSonner.of(context).show(
+        ShadToast(
+          title: const Text('Printer Berhasil Dihubungkan!'),
+          description: Text('Printer "$printerName" telah berhasil dikonfigurasi dan dipilih.'),
+        ),
+      );
+    } else {
+      ShadSonner.of(context).show(
+        ShadToast.destructive(
+          title: const Text('Gagal Menghubungkan Otomatis'),
+          description: const Text('Pastikan printer thermal USB Anda sudah terhubung ke Mac dan menyala.'),
+        ),
+      );
+    }
+  }
+
+  Future<void> _scanLocalPrinters() async {
+    if (!mounted) return;
+    setState(() {
+      _isLoadingPrinters = true;
+    });
+    try {
+      final printers = await PrinterService.getLocalPrinters();
+      if (!mounted) return;
+      setState(() {
+        _localPrinters = printers;
+      });
+    } catch (e) {
+      debugPrint('Error scanning local printers: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingPrinters = false;
+        });
+      }
+    }
+  }
 
   @override
   void initState() {
@@ -30,15 +96,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final tp = context.read<ThemeProvider>();
       _shopNameController.text = tp.shopName;
+      _shopAddressController.text = tp.shopAddress;
+      _shopPhoneController.text = tp.shopPhone;
+      _cashierNameController.text = tp.cashierName;
       _printerIpController.text = tp.printerIp;
       _printerPortController.text = tp.printerPort.toString();
       _printerNameController.text = tp.printerName;
+
+      final isUsb = tp.printerConnectionType == 'usb_windows' ||
+          tp.printerConnectionType == 'usb_macos' ||
+          tp.printerConnectionType == 'usb';
+      if (isUsb) {
+        _scanLocalPrinters();
+      }
     });
   }
 
   @override
   void dispose() {
     _shopNameController.dispose();
+    _shopAddressController.dispose();
+    _shopPhoneController.dispose();
+    _cashierNameController.dispose();
     _printerIpController.dispose();
     _printerPortController.dispose();
     _printerNameController.dispose();
@@ -167,6 +246,75 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         leading: Icon(Icons.edit_note_rounded, color: ShadTheme.of(context).colorScheme.mutedForeground, size: 20),
                         onChanged: (val) => themeProvider.setShopName(val),
                       ),
+                      const SizedBox(height: 24),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: ShadTheme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Icon(Icons.location_on_rounded, size: 20, color: ShadTheme.of(context).colorScheme.primary),
+                          ),
+                          const SizedBox(width: 12),
+                          const AppInputLabel(label: "Alamat Toko"),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                      ShadInput(
+                        controller: _shopAddressController,
+                        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                        placeholder: const Text("Contoh: Jl. Merdeka No. 123"),
+                        leading: Icon(Icons.map_rounded, color: ShadTheme.of(context).colorScheme.mutedForeground, size: 20),
+                        onChanged: (val) => themeProvider.setShopAddress(val),
+                      ),
+                      const SizedBox(height: 24),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: ShadTheme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Icon(Icons.phone_rounded, size: 20, color: ShadTheme.of(context).colorScheme.primary),
+                          ),
+                          const SizedBox(width: 12),
+                          const AppInputLabel(label: "No. Telepon Toko"),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                      ShadInput(
+                        controller: _shopPhoneController,
+                        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                        placeholder: const Text("Contoh: 0812-3456-7890"),
+                        leading: Icon(Icons.phone_iphone_rounded, color: ShadTheme.of(context).colorScheme.mutedForeground, size: 20),
+                        onChanged: (val) => themeProvider.setShopPhone(val),
+                      ),
+                      const SizedBox(height: 24),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: ShadTheme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Icon(Icons.person_rounded, size: 20, color: ShadTheme.of(context).colorScheme.primary),
+                          ),
+                          const SizedBox(width: 12),
+                          const AppInputLabel(label: "Nama Kasir (Struk)"),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                      ShadInput(
+                        controller: _cashierNameController,
+                        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                        placeholder: const Text("Contoh: Anggi"),
+                        leading: Icon(Icons.badge_rounded, color: ShadTheme.of(context).colorScheme.mutedForeground, size: 20),
+                        onChanged: (val) => themeProvider.setCashierName(val),
+                      ),
                     ],
                   ),
                 ),
@@ -281,10 +429,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           Expanded(
                             child: _buildPrinterPaperSizeToggleBtn(
                               context,
-                              label: "USB / Local (Windows)",
-                              isSelected: themeProvider.printerConnectionType == 'usb_windows',
+                              label: "USB / Lokal",
+                              isSelected: themeProvider.printerConnectionType == 'usb_windows' ||
+                                  themeProvider.printerConnectionType == 'usb_macos' ||
+                                  themeProvider.printerConnectionType == 'usb',
                               onTap: () {
-                                themeProvider.setPrinterConnectionType('usb_windows');
+                                final targetType = Platform.isWindows ? 'usb_windows' : 'usb_macos';
+                                themeProvider.setPrinterConnectionType(targetType);
+                                _scanLocalPrinters();
                               },
                             ),
                           ),
@@ -332,17 +484,88 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           children: [
                             Icon(Icons.usb_rounded, size: 20, color: ShadTheme.of(context).colorScheme.primary),
                             const SizedBox(width: 12),
-                            const AppInputLabel(label: "Nama Share Printer (Windows)"),
+                            Expanded(
+                              child: AppInputLabel(
+                                label: Platform.isWindows
+                                    ? "Nama Share Printer (Windows)"
+                                    : "Nama / Queue Printer (macOS/CUPS)",
+                              ),
+                            ),
+                            if (_isLoadingPrinters)
+                              const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            else
+                              IconButton(
+                                icon: const Icon(Icons.refresh_rounded, size: 18),
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                                onPressed: _scanLocalPrinters,
+                                tooltip: "Pindai Printer Lokal",
+                              ),
                           ],
                         ),
                         const SizedBox(height: 12),
                         ShadInput(
                           controller: _printerNameController,
                           style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
-                          placeholder: const Text("Contoh: POS-58"),
+                          placeholder: Text(Platform.isWindows ? "Contoh: POS-58" : "Contoh: XP-80"),
                           leading: Icon(Icons.edit_note_rounded, color: ShadTheme.of(context).colorScheme.mutedForeground, size: 20),
                           onChanged: (val) => themeProvider.setPrinterName(val),
                         ),
+                        if (_localPrinters.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          const AppInputLabel(label: "Printer Lokal Terdeteksi:"),
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: _localPrinters.map((printer) {
+                              final isSelected = _printerNameController.text == printer;
+                              return ActionChip(
+                                label: Text(printer),
+                                backgroundColor: isSelected
+                                    ? ShadTheme.of(context).colorScheme.primary
+                                    : ShadTheme.of(context).colorScheme.muted.withValues(alpha: 0.5),
+                                labelStyle: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 12,
+                                  color: isSelected
+                                      ? ShadTheme.of(context).colorScheme.primaryForeground
+                                      : ShadTheme.of(context).colorScheme.foreground,
+                                ),
+                                onPressed: () {
+                                  _printerNameController.text = printer;
+                                  themeProvider.setPrinterName(printer);
+                                },
+                              );
+                            }).toList(),
+                          ),
+                        ],
+                        if (Platform.isMacOS || Platform.isLinux) ...[
+                          const SizedBox(height: 12),
+                          ShadButton.outline(
+                            onPressed: _isAutoConfiguring ? null : _autoConfigureUsbPrinter,
+                            width: double.infinity,
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                if (_isAutoConfiguring)
+                                  const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                  )
+                                else
+                                  Icon(Icons.bolt_rounded, size: 16, color: ShadTheme.of(context).colorScheme.primary),
+                                const SizedBox(width: 8),
+                                Text(_isAutoConfiguring ? "Menghubungkan..." : "Hubungkan Otomatis Printer USB (Mac)"),
+                              ],
+                            ),
+                          ),
+                        ],
                         const SizedBox(height: 16),
                         Container(
                           padding: const EdgeInsets.all(20),
@@ -373,7 +596,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                     ),
                                     const SizedBox(height: 6),
                                     Text(
-                                      "1. Hubungkan printer ke PC Windows via kabel USB.\n2. Buka Control Panel -> Devices and Printers di Windows.\n3. Klik kanan printer Anda -> Printer Properties -> Sharing.\n4. Centang 'Share this printer' & masukkan nama share di atas (misal: POS-58).",
+                                      Platform.isWindows
+                                          ? "1. Hubungkan printer ke PC Windows via kabel USB.\n2. Buka Control Panel -> Devices and Printers di Windows.\n3. Klik kanan printer Anda -> Printer Properties -> Sharing.\n4. Centang 'Share this printer' & masukkan nama share di atas (misal: POS-58)."
+                                          : "1. Hubungkan printer ke Mac via kabel USB dan nyalakan.\n2. Buka System Settings -> Printers & Scanners di Mac Anda.\n3. Tambahkan printer baru. (Jika tidak ada driver khusus thermal printer, pilih \"Generic PostScript Printer\" atau generic text).\n4. Catat Nama / Queue Name printer tersebut (misal: POS-58) dan masukkan di atas.",
                                       style: TextStyle(
                                         fontSize: 11,
                                         color: ShadTheme.of(context).colorScheme.mutedForeground,
@@ -578,10 +803,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ipAddress: tp.printerIp,
       port: tp.printerPort,
       paperSize: tp.printerPaperSize == '58mm' ? PaperSize.mm58 : PaperSize.mm80,
+      shopName: tp.shopName,
+      shopAddress: tp.shopAddress,
+      shopPhone: tp.shopPhone,
+      cashierName: tp.cashierName,
     );
 
     // Call printReceiptAndOpenDrawer with dummy data
-    final success = await printerService.printReceiptAndOpenDrawer(
+    final errorMessage = await printerService.printReceiptAndOpenDrawer(
       [
         CartItem(
           productId: 0,
@@ -606,7 +835,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     });
 
     if (!mounted) return;
-    if (success) {
+    if (errorMessage == null) {
       ShadSonner.of(context).show(
         const ShadToast(
           title: Text('Printer Berhasil Terhubung!'),
@@ -614,13 +843,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
       );
     } else {
-      final destStr = tp.printerConnectionType == 'usb_windows'
+      final isUsb = tp.printerConnectionType == 'usb_windows' ||
+          tp.printerConnectionType == 'usb_macos' ||
+          tp.printerConnectionType == 'usb';
+      final destStr = isUsb
           ? 'USB printer "${tp.printerName}"'
           : '${tp.printerIp}:${tp.printerPort}';
       ShadSonner.of(context).show(
         ShadToast.destructive(
           title: const Text('Koneksi Gagal'),
-          description: Text('Gagal terhubung ke $destStr. Pastikan konfigurasi benar dan printer menyala.'),
+          description: Text('Gagal terhubung ke $destStr.\n\nDetail Error: $errorMessage\n\nPastikan konfigurasi benar dan printer menyala.'),
         ),
       );
     }

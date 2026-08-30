@@ -5,6 +5,9 @@ class ThemeProvider with ChangeNotifier {
   static const String _themeKey = 'theme_mode';
   static const String _colorKey = 'primary_color';
   static const String _shopNameKey = 'shop_name';
+  static const String _shopAddressKey = 'shop_address';
+  static const String _shopPhoneKey = 'shop_phone';
+  static const String _cashierNameKey = 'cashier_name';
   static const String _posCartWidthKey = 'pos_cart_width';
   static const String _printerIpKey = 'printer_ip';
   static const String _printerPortKey = 'printer_port';
@@ -15,6 +18,9 @@ class ThemeProvider with ChangeNotifier {
   ThemeMode _themeMode = ThemeMode.system;
   Color _primaryColor = const Color(0xFF0EA5E9); // Sky blue instead of Indigo
   String _shopName = 'Cashierya App';
+  String _shopAddress = 'Jl. Merdeka No. 123, Jakarta';
+  String _shopPhone = '0812-3456-7890';
+  String _cashierName = 'Anggi';
   double _posCartWidth = 320.0;
   String _printerIp = '192.168.1.100';
   int _printerPort = 9100;
@@ -26,6 +32,9 @@ class ThemeProvider with ChangeNotifier {
   ThemeMode get themeMode => _themeMode;
   Color get primaryColor => _primaryColor;
   String get shopName => _shopName;
+  String get shopAddress => _shopAddress;
+  String get shopPhone => _shopPhone;
+  String get cashierName => _cashierName;
   double get posCartWidth => _posCartWidth;
   String get printerIp => _printerIp;
   int get printerPort => _printerPort;
@@ -65,6 +74,9 @@ class ThemeProvider with ChangeNotifier {
         _primaryColor = Color(int.parse(colorHex, radix: 16));
       }
       _shopName = shopName ?? 'Cashierya App';
+      _shopAddress = prefs.getString(_shopAddressKey) ?? 'Jl. Merdeka No. 123, Jakarta';
+      _shopPhone = prefs.getString(_shopPhoneKey) ?? '0812-3456-7890';
+      _cashierName = prefs.getString(_cashierNameKey) ?? 'Anggi';
       _posCartWidth = (cartWidth ?? 320.0).clamp(280.0, 800.0);
       _printerIp = prefs.getString(_printerIpKey) ?? '192.168.1.100';
       _printerPort = prefs.getInt(_printerPortKey) ?? 9100;
@@ -189,6 +201,42 @@ class ThemeProvider with ChangeNotifier {
       await prefs.setString(_printerNameKey, name);
     } catch (e) {
       debugPrint('ThemeProvider: Failed to save printer name: $e');
+    }
+  }
+
+  Future<void> setShopAddress(String address) async {
+    _shopAddress = address;
+    notifyListeners();
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_shopAddressKey, address);
+    } catch (e) {
+      debugPrint('ThemeProvider: Failed to save shop address: $e');
+    }
+  }
+
+  Future<void> setShopPhone(String phone) async {
+    _shopPhone = phone;
+    notifyListeners();
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_shopPhoneKey, phone);
+    } catch (e) {
+      debugPrint('ThemeProvider: Failed to save shop phone: $e');
+    }
+  }
+
+  Future<void> setCashierName(String name) async {
+    _cashierName = name;
+    notifyListeners();
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_cashierNameKey, name);
+    } catch (e) {
+      debugPrint('ThemeProvider: Failed to save cashier name: $e');
     }
   }
 }

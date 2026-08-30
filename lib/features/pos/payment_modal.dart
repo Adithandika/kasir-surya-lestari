@@ -82,7 +82,6 @@ class _PaymentModalContentState extends State<_PaymentModalContent> {
   }
 
   void _processPayment(
-    BuildContext context,
     double total,
     double cashReceived,
     bool printReceipt,
@@ -108,6 +107,8 @@ class _PaymentModalContentState extends State<_PaymentModalContent> {
     // Add Commission (0.7%)
     license.addCommission(total);
 
+    final themeProvider = context.read<ThemeProvider>();
+
     // Process stock reduction
     for (var item in cart.items) {
       if (item.productId != null) {
@@ -129,7 +130,7 @@ class _PaymentModalContentState extends State<_PaymentModalContent> {
       date: DateTime.now(),
       totalProfit: cart.totalProfit,
     );
-    dashboard.addOrder(order);
+    await dashboard.addOrder(order);
 
     // Update Member Points (1 point for every 10.000 spent)
     if (cart.selectedMember != null) {
@@ -140,13 +141,16 @@ class _PaymentModalContentState extends State<_PaymentModalContent> {
     }
 
     // Hardware Trigger
-    final themeProvider = context.read<ThemeProvider>();
     final printerService = PrinterService(
       connectionType: themeProvider.printerConnectionType,
       printerName: themeProvider.printerName,
       ipAddress: themeProvider.printerIp,
       port: themeProvider.printerPort,
       paperSize: themeProvider.printerPaperSize == '58mm' ? PaperSize.mm58 : PaperSize.mm80,
+      shopName: themeProvider.shopName,
+      shopAddress: themeProvider.shopAddress,
+      shopPhone: themeProvider.shopPhone,
+      cashierName: themeProvider.cashierName,
     );
 
     if (printReceipt) {
@@ -159,6 +163,8 @@ class _PaymentModalContentState extends State<_PaymentModalContent> {
         change,
         memberName: order.memberName,
         openDrawer: true,
+        orderId: order.id,
+        transactionDate: order.date,
       );
     } else {
       printerService.openCashDrawer();
@@ -625,7 +631,6 @@ class _PaymentModalContentState extends State<_PaymentModalContent> {
                       ShadButton(
                         onPressed: paymentState.cashReceived >= total
                             ? () => _processPayment(
-                                context,
                                 total,
                                 paymentState.cashReceived,
                                 paymentState.printReceipt,
