@@ -65,6 +65,12 @@ class DatabaseService {
     });
   }
 
+  static Future<void> saveAllProducts(List<Product> products) async {
+    await isar.writeTxn(() async {
+      await isar.products.putAll(products);
+    });
+  }
+
   static Future<void> deleteProduct(Id id) async {
     await isar.writeTxn(() async {
       await isar.products.delete(id);

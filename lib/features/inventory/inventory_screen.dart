@@ -8,6 +8,7 @@ import '../../models/product.dart';
 import '../../providers/inventory_provider.dart';
 import 'product_editor_screen.dart';
 import 'category_management_screen.dart';
+import 'csv_import_export_dialog.dart';
 import '../../core/widgets/app_widgets.dart';
 
 class InventoryScreen extends StatefulWidget {
@@ -48,6 +49,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
               badgeLabel: "SYSTEM INVENTORY",
               title: "Kelola Stok",
               actions: [
+                _buildExportImportButton().animate().fadeIn(delay: 150.ms).scale(),
+                const SizedBox(width: 12),
                 _buildManageCategoryButton().animate().fadeIn(delay: 200.ms).scale(),
                 const SizedBox(width: 12),
                 _buildBulkStockButton().animate().fadeIn(delay: 250.ms).scale(),
@@ -115,6 +118,37 @@ class _InventoryScreenState extends State<InventoryScreen> {
   }
 
 
+
+  Widget _buildExportImportButton() {
+    return ShadButton.outline(
+      onPressed: _showCsvImportExportDialog,
+      height: 48,
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      decoration: ShadDecoration(
+        border: ShadBorder.all(
+          radius: BorderRadius.circular(100),
+          width: 1,
+          color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
+        ),
+      ),
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.swap_vert_rounded, size: 20),
+          SizedBox(width: 8),
+          Text('EKSPOR / IMPOR', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+        ],
+      ),
+    );
+  }
+
+  void _showCsvImportExportDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) => const CsvImportExportDialog(),
+    );
+  }
 
   Widget _buildManageCategoryButton() {
     return ShadButton.outline(

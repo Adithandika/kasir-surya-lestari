@@ -257,6 +257,65 @@ class InventoryProvider with ChangeNotifier {
     _applyFilters();
   }
 
+  Future<Map<String, int>> importProducts(
+    List<Product> incomingProducts, {
+    bool updateExisting = true,
+  }) async {
+    int addedCount = 0;
+    int updatedCount = 0;
+    int skippedCount = 0;
+
+    final List<Product> toSave = [];
+    final Set<String> newCategories = {};
+
+    for (final incoming in incomingProducts) {
+      final existingIndex = _products.indexWhere((p) => p.barcode == incoming.barcode);
+
+      if (existingIndex != -1) {
+        if (updateExisting) {
+          final existing = _products[existingIndex];
+          final updated = existing.copyWith(
+            name: incoming.name,
+            category: incoming.category,
+            costPrice: incoming.costPrice > 0 ? incoming.costPrice : existing.costPrice,
+            price: incoming.price > 0 ? incoming.price : existing.price,
+            stock: incoming.stock,
+          );
+          toSave.add(updated);
+          updatedCount++;
+        } else {
+          skippedCount++;
+        }
+      } else {
+        toSave.add(incoming);
+        addedCount++;
+      }
+
+      if (incoming.category.isNotEmpty && !_customCategories.contains(incoming.category)) {
+        newCategories.add(incoming.category);
+      }
+    }
+
+    if (toSave.isNotEmpty) {
+      await DatabaseService.saveAllProducts(toSave);
+      _products = await DatabaseService.getAllProducts();
+    }
+
+    if (newCategories.isNotEmpty) {
+      _customCategories.addAll(newCategories);
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList('inventory_categories', _customCategories);
+    }
+
+    _applyFilters();
+
+    return {
+      'added': addedCount,
+      'updated': updatedCount,
+      'skipped': skippedCount,
+    };
+  }
+
   Future<void> addCategory(String category) async {
     final name = category.trim();
     if (name.isNotEmpty && !_customCategories.contains(name)) {
