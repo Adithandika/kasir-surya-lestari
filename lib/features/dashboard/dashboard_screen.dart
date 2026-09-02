@@ -96,7 +96,6 @@ class DashboardScreen extends StatelessWidget {
   ) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final isNarrow = constraints.maxWidth < 700;
         final cards = [
           _StatData(
             title: "Pendapatan Total",
@@ -116,9 +115,22 @@ class DashboardScreen extends StatelessWidget {
             icon: Icons.confirmation_number_rounded,
             gradient: [const Color(0xFFF59E0B), const Color(0xFFFB923C)],
           ),
+          _StatData(
+            title: "Rata-rata Transaksi",
+            value: currencyFormatter.format(dashboard.averageTransactionValue),
+            icon: Icons.analytics_rounded,
+            gradient: const [Color(0xFF64748B), Color(0xFF475569)],
+          ),
         ];
 
-        if (isNarrow) {
+        int crossAxisCount = 4;
+        if (constraints.maxWidth < 650) {
+          crossAxisCount = 1;
+        } else if (constraints.maxWidth < 1100) {
+          crossAxisCount = 2;
+        }
+
+        if (crossAxisCount == 1) {
           return Column(
             children: cards
                 .asMap()
@@ -131,13 +143,35 @@ class DashboardScreen extends StatelessWidget {
           );
         }
 
+        if (crossAxisCount == 2) {
+          return Column(
+            children: [
+              Row(
+                children: [
+                  Expanded(child: _buildStatCard(context, cards[0], 0)),
+                  const SizedBox(width: 16),
+                  Expanded(child: _buildStatCard(context, cards[1], 1)),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(child: _buildStatCard(context, cards[2], 2)),
+                  const SizedBox(width: 16),
+                  Expanded(child: _buildStatCard(context, cards[3], 3)),
+                ],
+              ),
+            ],
+          );
+        }
+
         return Row(
           children: cards
               .asMap()
               .entries
               .map((e) => Expanded(
                     child: Padding(
-                      padding: EdgeInsets.only(right: e.key < cards.length - 1 ? 20 : 0),
+                      padding: EdgeInsets.only(right: e.key < cards.length - 1 ? 16 : 0),
                       child: _buildStatCard(context, e.value, e.key),
                     ),
                   ))

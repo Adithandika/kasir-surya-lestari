@@ -323,56 +323,93 @@ class _ReportContentView extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         int crossAxisCount = 4;
-        if (constraints.maxWidth < 600) {
+        if (constraints.maxWidth < 650) {
           crossAxisCount = 1;
         } else if (constraints.maxWidth < 1100) {
           crossAxisCount = 2;
         }
 
-        return GridView(
-          shrinkWrap: true,
-          padding: EdgeInsets.zero,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: crossAxisCount,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            childAspectRatio: crossAxisCount == 1 ? 2.8 : 2.2,
+        final cards = [
+          AppStatCard(
+            title: "TOTAL PENJUALAN",
+            value: formatter.format(sales),
+            icon: Icons.payments_rounded,
+            gradient: [Theme.of(context).primaryColor, Theme.of(context).primaryColor.withValues(alpha: 0.8)],
+            index: 0,
+            isPremium: true,
           ),
-          children: [
-            AppStatCard(
-              title: "TOTAL PENJUALAN",
-              value: formatter.format(sales),
-              icon: Icons.payments_rounded,
-              gradient: [Theme.of(context).primaryColor, Theme.of(context).primaryColor.withValues(alpha: 0.8)],
-              index: 0,
-              isPremium: true,
-            ),
-            AppStatCard(
-              title: "TOTAL PROFIT",
-              value: formatter.format(profit),
-              icon: Icons.trending_up_rounded,
-              gradient: [AppTheme.successColor, AppTheme.successColor.withValues(alpha: 0.8)],
-              index: 1,
-              isPremium: true,
-            ),
-            AppStatCard(
-              title: "TRANSAKSI",
-              value: trans.toString(),
-              icon: Icons.receipt_long_rounded,
-              gradient: [AppTheme.warningColor, AppTheme.warningColor.withValues(alpha: 0.8)],
-              index: 2,
-              isPremium: true,
-            ),
-            AppStatCard(
-              title: "RATA-RATA",
-              value: formatter.format(avg),
-              icon: Icons.analytics_rounded,
-              gradient: const [Color(0xFF64748B), Color(0xFF475569)], // Slate grey instead of Pink
-              index: 3,
-              isPremium: true,
-            ),
-          ],
+          AppStatCard(
+            title: "TOTAL PROFIT",
+            value: formatter.format(profit),
+            icon: Icons.trending_up_rounded,
+            gradient: [AppTheme.successColor, AppTheme.successColor.withValues(alpha: 0.8)],
+            index: 1,
+            isPremium: true,
+          ),
+          AppStatCard(
+            title: "TRANSAKSI",
+            value: trans.toString(),
+            icon: Icons.receipt_long_rounded,
+            gradient: [AppTheme.warningColor, AppTheme.warningColor.withValues(alpha: 0.8)],
+            index: 2,
+            isPremium: true,
+          ),
+          AppStatCard(
+            title: "RATA-RATA",
+            value: formatter.format(avg),
+            icon: Icons.analytics_rounded,
+            gradient: const [Color(0xFF64748B), Color(0xFF475569)],
+            index: 3,
+            isPremium: true,
+          ),
+        ];
+
+        if (crossAxisCount == 1) {
+          return Column(
+            children: cards
+                .asMap()
+                .entries
+                .map((e) => Padding(
+                      padding: EdgeInsets.only(bottom: e.key < cards.length - 1 ? 16 : 0),
+                      child: e.value,
+                    ))
+                .toList(),
+          );
+        }
+
+        if (crossAxisCount == 2) {
+          return Column(
+            children: [
+              Row(
+                children: [
+                  Expanded(child: cards[0]),
+                  const SizedBox(width: 16),
+                  Expanded(child: cards[1]),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(child: cards[2]),
+                  const SizedBox(width: 16),
+                  Expanded(child: cards[3]),
+                ],
+              ),
+            ],
+          );
+        }
+
+        return Row(
+          children: cards
+              .asMap()
+              .entries
+              .map((e) => Expanded(
+                    child: Padding(
+                      padding: EdgeInsets.only(right: e.key < cards.length - 1 ? 16 : 0),
+                      child: e.value,
+                    ),
+                  ))
+              .toList(),
         );
       },
     );

@@ -357,7 +357,7 @@ class _ProductEditorScreenState extends State<ProductEditorScreen> {
           clipBehavior: Clip.antiAlias,
           child: InkWell(
             onTap: _pickImage,
-            child: _imagePath != null
+            child: isLocalFileValid(_imagePath)
                 ? Stack(
                     fit: StackFit.expand,
                     children: [

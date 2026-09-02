@@ -165,6 +165,15 @@ class AppCard extends StatelessWidget {
   }
 }
 
+bool isLocalFileValid(String? path) {
+  if (path == null || path.trim().isEmpty) return false;
+  try {
+    return File(path).existsSync();
+  } catch (_) {
+    return false;
+  }
+}
+
 class AppProductImage extends StatelessWidget {
   final String? imagePath;
   final double size;
@@ -179,9 +188,7 @@ class AppProductImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bool hasValidImage = imagePath != null &&
-        imagePath!.isNotEmpty &&
-        File(imagePath!).existsSync();
+    final bool hasValidImage = isLocalFileValid(imagePath);
 
     return Container(
       width: size,

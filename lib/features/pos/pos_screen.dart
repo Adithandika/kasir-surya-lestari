@@ -537,12 +537,24 @@ class _PosScreenState extends State<PosScreen> {
                       color: Theme.of(context).primaryColor.withValues(alpha: 0.05),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: (item.productImagePath != null && File(item.productImagePath!).existsSync())
+                    child: isLocalFileValid(item.productImagePath)
                         ? ClipRRect(
                             borderRadius: BorderRadius.circular(12),
-                            child: Image.file(File(item.productImagePath!), fit: BoxFit.cover),
+                            child: Image.file(
+                              File(item.productImagePath!),
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) => Icon(
+                                Icons.inventory_2_rounded,
+                                size: 18,
+                                color: Theme.of(context).primaryColor.withValues(alpha: 0.3),
+                              ),
+                            ),
                           )
-                        : Icon(Icons.inventory_2_rounded, size: 18, color: Theme.of(context).primaryColor.withValues(alpha: 0.3)),
+                        : Icon(
+                            Icons.inventory_2_rounded,
+                            size: 18,
+                            color: Theme.of(context).primaryColor.withValues(alpha: 0.3),
+                          ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -987,7 +999,11 @@ class _ProductGridItemState extends State<_ProductGridItem> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isOut = widget.product.stock <= 0;
+    final stock = widget.product.stock ?? 0;
+    final isOut = stock <= 0;
+    final hasImage = isLocalFileValid(widget.product.imagePath);
+    final productName = widget.product.name?.toString().isNotEmpty == true ? widget.product.name.toString() : 'Tanpa Nama';
+    final productPrice = (widget.product.price is num) ? (widget.product.price as num).toDouble() : 0.0;
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
@@ -1024,22 +1040,26 @@ class _ProductGridItemState extends State<_ProductGridItem> {
                           height: double.infinity,
                           decoration: BoxDecoration(
                             color: theme.scaffoldBackgroundColor.withValues(alpha: 0.5),
-                            image: (widget.product.imagePath != null && File(widget.product.imagePath!).existsSync())
-                                ? DecorationImage(
-                                    image: FileImage(File(widget.product.imagePath!)),
-                                    fit: BoxFit.cover,
-                                  )
-                                : null,
                           ),
-                          child: (widget.product.imagePath == null || !File(widget.product.imagePath!).existsSync())
-                              ? Center(
+                          child: hasImage
+                              ? Image.file(
+                                  File(widget.product.imagePath!),
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) => Center(
+                                    child: Icon(
+                                      Icons.image_not_supported_rounded,
+                                      size: 44,
+                                      color: theme.primaryColor.withValues(alpha: 0.1),
+                                    ),
+                                  ),
+                                )
+                              : Center(
                                   child: Icon(
                                     Icons.image_not_supported_rounded,
                                     size: 44,
                                     color: theme.primaryColor.withValues(alpha: 0.1),
                                   ),
-                                )
-                              : null,
+                                ),
                         ),
                         if (isOut)
                           Container(
@@ -1067,7 +1087,7 @@ class _ProductGridItemState extends State<_ProductGridItem> {
                               border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
                             ),
                             child: Text(
-                              "${widget.product.stock}",
+                              "$stock",
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 9,
@@ -1085,7 +1105,7 @@ class _ProductGridItemState extends State<_ProductGridItem> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          widget.product.name,
+                          productName,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
@@ -1097,7 +1117,7 @@ class _ProductGridItemState extends State<_ProductGridItem> {
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          widget.currencyFormatter.format(widget.product.price),
+                          widget.currencyFormatter.format(productPrice),
                           style: TextStyle(
                             color: theme.primaryColor,
                             fontWeight: FontWeight.w900,
@@ -1140,7 +1160,11 @@ class _ProductListItemState extends State<_ProductListItem> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isOut = widget.product.stock <= 0;
+    final stock = widget.product.stock ?? 0;
+    final isOut = stock <= 0;
+    final hasImage = isLocalFileValid(widget.product.imagePath);
+    final productName = widget.product.name?.toString().isNotEmpty == true ? widget.product.name.toString() : 'Tanpa Nama';
+    final productPrice = (widget.product.price is num) ? (widget.product.price as num).toDouble() : 0.0;
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
@@ -1176,13 +1200,21 @@ class _ProductListItemState extends State<_ProductListItem> {
                       decoration: BoxDecoration(
                         color: theme.scaffoldBackgroundColor,
                         borderRadius: BorderRadius.circular(AppTheme.radiusSM),
-                        image: (widget.product.imagePath != null && File(widget.product.imagePath!).existsSync())
-                            ? DecorationImage(image: FileImage(File(widget.product.imagePath!)), fit: BoxFit.cover)
-                            : null,
                       ),
-                      child: (widget.product.imagePath == null || !File(widget.product.imagePath!).existsSync())
-                          ? Icon(Icons.inventory_2_rounded, color: theme.primaryColor.withValues(alpha: 0.2))
-                          : null,
+                      clipBehavior: Clip.antiAlias,
+                      child: hasImage
+                          ? Image.file(
+                              File(widget.product.imagePath!),
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) => Icon(
+                                Icons.inventory_2_rounded,
+                                color: theme.primaryColor.withValues(alpha: 0.2),
+                              ),
+                            )
+                          : Icon(
+                              Icons.inventory_2_rounded,
+                              color: theme.primaryColor.withValues(alpha: 0.2),
+                            ),
                     ),
                     const SizedBox(width: 16),
                     Expanded(
@@ -1190,14 +1222,14 @@ class _ProductListItemState extends State<_ProductListItem> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            widget.product.name,
+                            productName,
                             style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            widget.currencyFormatter.format(widget.product.price),
+                            widget.currencyFormatter.format(productPrice),
                             style: TextStyle(
                               fontWeight: FontWeight.w900,
                               color: theme.primaryColor,
@@ -1220,7 +1252,7 @@ class _ProductListItemState extends State<_ProductListItem> {
                             borderRadius: BorderRadius.circular(100),
                           ),
                           child: Text(
-                            isOut ? "HABIS" : "${widget.product.stock} Stok",
+                            isOut ? "HABIS" : "$stock Stok",
                             style: TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.w900,
